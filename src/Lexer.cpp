@@ -3,9 +3,12 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <algorithm> // For std::find_if
+#include <algorithm>
+#include <fstream>
 
-// ********** Start of Token helper functions (required for Lexer.cpp compilation) **********
+// ********** 1. Определение вспомогательных функций Token (Token.h) **********
+
+// Внутренние карты для преобразования перечислений в строки
 namespace {
     const std::map<TokenType, std::string> tokenTypeNames = {
         {TokenType::TOKEN_INT, "INT"}, {TokenType::TOKEN_IF, "IF"},
@@ -19,254 +22,253 @@ namespace {
         {TokenType::TOKEN_SEMICOLON, "SEMICOLON"}, {TokenType::TOKEN_LPAREN, "LPAREN"},
         {TokenType::TOKEN_RPAREN, "RPAREN"}, {TokenType::TOKEN_LBRACE, "LBRACE"},
         {TokenType::TOKEN_RBRACE, "RBRACE"}, {TokenType::TOKEN_EOF, "EOF"},
-        {TokenType::TOKEN_UNKNOWN, "UNKNOWN"}
+        {TokenType::TOKEN_UNKNOWN, "UNKNOWN"}, {TokenType::TOKEN_ERROR, "ERROR"}
     };
 
     const std::map<TokenClass, std::string> tokenClassNames = {
-        {TokenClass::KEYWORD, "KEYWORD"}, {TokenClass::LITERAL, "LITERAL"},
-        {TokenClass::IDENTIFIER, "IDENTIFIER"}, {TokenClass::OPERATOR, "OPERATOR"},
-        {TokenClass::PUNCTUATION, "PUNCTUATION"}, {TokenClass::END_OF_FILE, "END_OF_FILE"},
+        {TokenClass::KEYWORD, "KEYWORD"},
+        {TokenClass::LITERAL, "LITERAL"},
+        {TokenClass::IDENTIFIER, "IDENTIFIER"},
+        {TokenClass::OPERATOR, "OPERATOR"},
+        {TokenClass::PUNCTUATION, "PUNCTUATION"},
+        {TokenClass::END_OF_FILE, "END_OF_FILE"},
         {TokenClass::UNKNOWN, "UNKNOWN"}
     };
 }
 
+// Определение вспомогательных функций, объявленных в Token.h
 std::string Token::typeToString() const {
-    if (tokenTypeNames.count(type)) return tokenTypeNames.at(type);
+    auto it = tokenTypeNames.find(type);
+    if (it != tokenTypeNames.end()) {
+        return it->second;
+    }
     return "UNKNOWN_TYPE";
 }
 
 std::string Token::classToString() const {
-    if (tokenClassNames.count(token_class)) return tokenClassNames.at(token_class);
+    auto it = tokenClassNames.find(token_class);
+    if (it != tokenClassNames.end()) {
+        return it->second;
+    }
     return "UNKNOWN_CLASS";
 }
-// ********** End of Token helper functions **********
 
 
-// Constructor
+// --------------------------------------------------------------------------
+// 2. Lexer Core Implementation
+// --------------------------------------------------------------------------
+
 Lexer::Lexer(const std::string& source_code, ErrorHandler* handler)
-    : source_code_(source_code), current_pos_(0), current_line_(1), line_start_pos_(0), error_handler_(handler) {}
-
-// --- Helper Methods ---
-
-char Lexer::peek(size_t offset) const {
-    if (current_pos_ + offset >= source_code_.length()) {
-        return '\0'; // End of file
-    }
-    return source_code_[current_pos_ + offset];
+    : source_code_(source_code),
+      error_handler_(handler) {
+    // Все остальные члены (current_index_, token_index_ и т.д.) инициализированы в Lexer.h
 }
 
-void Lexer::advance() {
-    if (peek() == '\n') {
-        current_line_++;
-        line_start_pos_ = current_pos_ + 1;
+bool Lexer::isAtEnd() const {
+    return current_index_ >= source_code_.length();
+}
+
+char Lexer::peek(size_t offset) const {
+    size_t index = current_index_ + offset;
+    if (index >= source_code_.length()) {
+        return '\0'; // Null terminator for EOF
     }
-    current_pos_++;
+    return source_code_[index];
+}
+
+void Lexer::advance(size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        if (isAtEnd()) break;
+        if (source_code_[current_index_] == '\n') {
+            current_line_++;
+            line_start_pos_ = current_index_ + 1;
+        }
+        current_index_++;
+    }
 }
 
 void Lexer::skipWhitespace() {
-    while (current_pos_ < source_code_.length() && std::isspace(peek())) {
-        advance();
+    while (!isAtEnd()) {
+        char c = peek();
+        if (c == ' ' || c == '\r' || c == '\t' || c == '\n') {
+            advance();
+        } else {
+            break;
+        }
     }
 }
 
-void Lexer::error(const std::string& message) {
-    int position_in_line = (int)(current_pos_ - line_start_pos_);
-    // Using English for error type
-    error_handler_->registerError("Lexical", message, current_line_, position_in_line);
-}
-
-// --- State Machine / Automaton Methods ---
-
-// Handles single-line comments (//...)
-void Lexer::processComment() {
+void Lexer::skipComment() {
     if (peek() == '/' && peek(1) == '/') {
-        // Skip //
-        advance();
-        advance();
-        // Skip all characters until end of line or EOF
-        while (peek() != '\n' && peek() != '\0') {
+        advance(2); // Пропускаем //
+        while (!isAtEnd() && peek() != '\n') {
             advance();
         }
-        // If we hit '\n', advance() will update the line number
-        if (peek() == '\n') {
-            advance();
-        }
+        skipWhitespace();
     }
 }
 
-// Handles identifiers and keywords
-Token Lexer::processIdentifierOrKeyword() {
-    int start_pos = current_pos_;
-    int start_line = current_line_;
-
-    // Identifier start: letter or '_'
-    while (std::isalnum(peek()) || peek() == '_') {
-        advance();
-    }
-
-    std::string value = source_code_.substr(start_pos, current_pos_ - start_pos);
-
-    // Check if the value is a keyword
-    if (keywords_.count(value)) {
-        return {
-            keywords_.at(value),
-            TokenClass::KEYWORD,
-            value,
-            start_line,
-            (int)(start_pos - line_start_pos_)
-        };
-    } else {
-        return {
-            TokenType::TOKEN_IDENTIFIER,
-            TokenClass::IDENTIFIER,
-            value,
-            start_line,
-            (int)(start_pos - line_start_pos_)
-        };
-    }
+bool Lexer::isDigit(char c) const {
+    return c >= '0' && c <= '9';
 }
 
-// Handles integer literals
-Token Lexer::processNumber() {
-    int start_pos = current_pos_;
-    int start_line = current_line_;
+bool Lexer::isAlpha(char c) const {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+}
 
-    // Number start
-    while (std::isdigit(peek())) {
+bool Lexer::isAlphaNumeric(char c) const {
+    return isAlpha(c) || isDigit(c);
+}
+
+void Lexer::scanNumber() {
+    size_t start_index = current_index_;
+    while (isDigit(peek())) {
         advance();
     }
 
-    std::string value = source_code_.substr(start_pos, current_pos_ - start_pos);
-
-    return {
+    std::string value = source_code_.substr(start_index, current_index_ - start_index);
+    tokens_.push_back({
         TokenType::TOKEN_INT_LITERAL,
         TokenClass::LITERAL,
         value,
-        start_line,
-        (int)(start_pos - line_start_pos_)
-    };
+        current_line_,
+        (int)(start_index - line_start_pos_)
+    });
 }
 
-// Handles operators and punctuation
-Token Lexer::processOperator() {
-    char c = peek();
-    int start_pos = current_pos_;
-    int start_line = current_line_;
+void Lexer::scanIdentifierOrKeyword() {
+    size_t start_index = current_index_;
+    while (isAlphaNumeric(peek())) {
+        advance();
+    }
 
+    std::string value = source_code_.substr(start_index, current_index_ - start_index);
+
+    TokenType type;
+    TokenClass token_class;
+
+    if (keywords_.count(value)) {
+        type = keywords_.at(value);
+        token_class = TokenClass::KEYWORD;
+    } else {
+        type = TokenType::TOKEN_IDENTIFIER;
+        token_class = TokenClass::IDENTIFIER;
+    }
+
+    tokens_.push_back({
+        type,
+        token_class,
+        value,
+        current_line_,
+        (int)(start_index - line_start_pos_)
+    });
+}
+
+void Lexer::scanToken() {
+    skipWhitespace();
+    skipComment();
+    skipWhitespace();
+
+    if (isAtEnd()) {
+        return;
+    }
+
+    char c = peek();
+    size_t start_index = current_index_;
     TokenType type = TokenType::TOKEN_UNKNOWN;
     TokenClass token_class = TokenClass::UNKNOWN;
-    std::string value = std::string(1, c);
+    size_t len = 1;
 
-    advance(); // Consume the first character
+    if (isDigit(c)) {
+        scanNumber();
+        return;
+    }
+    if (isAlpha(c)) {
+        scanIdentifierOrKeyword();
+        return;
+    }
 
     switch (c) {
         case '+': type = TokenType::TOKEN_PLUS; token_class = TokenClass::OPERATOR; break;
         case '-': type = TokenType::TOKEN_MINUS; token_class = TokenClass::OPERATOR; break;
         case '*': type = TokenType::TOKEN_MULTIPLY; token_class = TokenClass::OPERATOR; break;
-        case '/': type = TokenType::TOKEN_DIVIDE; token_class = TokenClass::OPERATOR; break;
-
+        case '/':
+            type = TokenType::TOKEN_DIVIDE;
+            token_class = TokenClass::OPERATOR;
+            break;
         case ';': type = TokenType::TOKEN_SEMICOLON; token_class = TokenClass::PUNCTUATION; break;
         case '(': type = TokenType::TOKEN_LPAREN; token_class = TokenClass::PUNCTUATION; break;
         case ')': type = TokenType::TOKEN_RPAREN; token_class = TokenClass::PUNCTUATION; break;
         case '{': type = TokenType::TOKEN_LBRACE; token_class = TokenClass::PUNCTUATION; break;
         case '}': type = TokenType::TOKEN_RBRACE; token_class = TokenClass::PUNCTUATION; break;
 
-        // Double-character operators
         case '=':
-            if (peek() == '=') { advance(); value += "="; type = TokenType::TOKEN_EQUAL; }
-            else { type = TokenType::TOKEN_ASSIGN; }
+            if (peek(1) == '=') {
+                type = TokenType::TOKEN_EQUAL;
+                len = 2;
+            } else {
+                type = TokenType::TOKEN_ASSIGN;
+            }
+            token_class = TokenClass::OPERATOR;
+            break;
+        case '!':
+            if (peek(1) == '=') {
+                type = TokenType::TOKEN_NOT_EQUAL;
+                len = 2;
+            } else {
+                type = TokenType::TOKEN_UNKNOWN;
+            }
+            token_class = TokenClass::OPERATOR;
+            break;
+        case '<':
+            type = TokenType::TOKEN_LESS;
+            token_class = TokenClass::OPERATOR;
+            break;
+        case '>':
+            type = TokenType::TOKEN_GREATER;
             token_class = TokenClass::OPERATOR;
             break;
 
-        case '!':
-            if (peek() == '=') { advance(); value += "="; type = TokenType::TOKEN_NOT_EQUAL; token_class = TokenClass::OPERATOR; }
-            else { error("Unexpected character '!'"); }
-            break;
-
-        case '<':
-            type = TokenType::TOKEN_LESS; token_class = TokenClass::OPERATOR;
-            break;
-
-        case '>':
-            type = TokenType::TOKEN_GREATER; token_class = TokenClass::OPERATOR;
-            break;
-
         default:
-            // Return UNKNOWN to let runLexer handle the error
-            return {TokenType::TOKEN_UNKNOWN, TokenClass::UNKNOWN, value, start_line, (int)(start_pos - line_start_pos_)};
+            type = TokenType::TOKEN_UNKNOWN;
+            token_class = TokenClass::UNKNOWN;
+            break;
     }
 
-    return {
+    if (type == TokenType::TOKEN_UNKNOWN) {
+        // Регистрация лексической ошибки. Важно, чтобы error_handler_ не был nullptr!
+        if (error_handler_) {
+            error_handler_->registerError(
+                "Lexical",
+                "Unknown symbol: '" + std::string(1, c) + "'",
+                current_line_,
+                (int)(current_index_ - line_start_pos_)
+            );
+        }
+        // Пропускаем неизвестный символ, чтобы продолжить анализ
+        advance(len);
+        return;
+    }
+
+    std::string value = source_code_.substr(start_index, len);
+    tokens_.push_back({
         type,
         token_class,
         value,
-        start_line,
-        (int)(start_pos - line_start_pos_)
-    };
+        current_line_,
+        (int)(start_index - line_start_pos_)
+    });
+
+    advance(len);
 }
 
-
-// --- Main Automaton Loop (Populates tokens_) ---
-void Lexer::skipBOM() {
-    // BOM для UTF-8: 0xEF, 0xBB, 0xBF
-    if (source_code_.length() >= 3 &&
-        (unsigned char)source_code_[0] == 0xEF &&
-        (unsigned char)source_code_[1] == 0xBB &&
-        (unsigned char)source_code_[2] == 0xBF) {
-
-        current_pos_ += 3; // Сдвигаем позицию на 3 байта
-        // Важно: BOM находится на первой строке, поэтому line_start_pos_ не меняется
-        }
-}
-
-// src/Lexer.cpp (Обновленный фрагмент Lexer::runLexer)
 void Lexer::runLexer() {
-    tokens_.clear();
-    current_pos_ = 0;
-    current_line_ = 1;
-    line_start_pos_ = 0;
+    // Сбрасываем индекс токенов на случай повторного запуска (хотя Parser должен иметь свой сброс)
+    token_index_ = 0;
+    tokens_.clear(); // Начинаем с чистого листа
 
-    // --- НОВОЕ: Сначала пропускаем BOM ---
-    skipBOM();
-    // --- Конец НОВОЕ ---
-
-    while (current_pos_ < source_code_.length()) {
-
-        // 1. Пропускаем все, что не является токеном
-        skipWhitespace();
-
-        // Повторно проверяем после skipWhitespace
-        if (current_pos_ >= source_code_.length()) break;
-
-        // Проверяем комментарий
-        if (peek() == '/' && peek(1) == '/') {
-            processComment();
-            continue;
-        }
-
-        // После пропуска пробелов/комментариев, читаем текущий символ
-        char c = peek();
-
-        if (c == '\0') break;
-
-        // 2. Расширяющийся автомат: Определение стартового символа
-        if (std::isalpha(c) || c == '_') {
-            tokens_.push_back(processIdentifierOrKeyword());
-        }
-        else if (std::isdigit(c)) {
-            tokens_.push_back(processNumber());
-        }
-        else if (c != '\0') {
-            // Если символ - не буква, не число и не пробел/комментарий, это оператор/пунктуация
-            Token token = processOperator();
-            if (token.type == TokenType::TOKEN_UNKNOWN) {
-                // Лексическая ошибка (неизвестный символ)
-                error("Unknown symbol");
-                advance(); // Consume the unknown character
-            } else {
-                tokens_.push_back(token);
-            }
-        }
+    while (!isAtEnd()) {
+        scanToken();
     }
 
     // Append EOF token
@@ -275,36 +277,48 @@ void Lexer::runLexer() {
         TokenClass::END_OF_FILE,
         "EOF",
         current_line_,
-        (int)(current_pos_ - line_start_pos_)
+        (int)(current_index_ - line_start_pos_)
     });
 }
 
-// --- Output Methods ---
+// --------------------------------------------------------------------------
+// 3. Parser Interface (КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ СЕГМЕНТАЦИОННОЙ ОШИБКИ)
+// --------------------------------------------------------------------------
 
-// Method for the Parser (retrieves tokens in sequence)
 Token Lexer::getNextToken() {
-    static size_t token_index = 0;
-    if (token_index < tokens_.size()) {
-        return tokens_[token_index++];
+    // 1. Проверяем, есть ли еще токены для выдачи
+    if (token_index_ < tokens_.size()) {
+        return tokens_[token_index_++];
     }
-    // Should return the last token (EOF) if requested beyond the end
-    return tokens_.back();
+
+    // 2. Если достигнут конец И список токенов НЕ пуст, возвращаем последний токен (EOF)
+    // ЭТО ИСПРАВЛЕНИЕ: Предотвращает сбой при обращении к пустому вектору
+    if (!tokens_.empty()) {
+        return tokens_.back();
+    }
+
+    // 3. Аварийный выход: если Lexer вообще не создал токенов (например, пустой файл)
+    return Token(TokenType::TOKEN_ERROR, TokenClass::UNKNOWN, "Empty Token Stream", 0, 0);
 }
 
+// --------------------------------------------------------------------------
+// 4. Output Methods
+// --------------------------------------------------------------------------
+
 void Lexer::printTokenTable(std::ostream& os) const {
-    // English titles here
     os << "## 📄 Token Table (LTLab)\n\n";
 
-    // Russian column headers as requested
     os << "| Номер Строки | Позиция | Имя Лексемы | Класс Лексемы | Значение |\n";
     os << "| :---: | :---: | :--- | :--- | :--- |\n";
 
     for (const auto& token : tokens_) {
+        std::string value = token.value.empty() ? "\u00A0" : token.value;
+
         os << "| " << std::setw(13) << token.line
            << " | " << std::setw(7) << token.position
            << " | " << token.typeToString()
            << " | " << token.classToString()
-           << " | `" << token.value << "` |\n";
+           << " | `" << value << "` |\n";
     }
 }
 
@@ -314,6 +328,6 @@ void Lexer::writeTokenTableToFile(const std::string& filename) const {
         printTokenTable(ofs);
         ofs.close();
     } else {
-        std::cerr << "Error: Could not open file to write token table: " << filename << std::endl;
+        std::cerr << "Error: Could not open output file for token table: " << filename << std::endl;
     }
 }

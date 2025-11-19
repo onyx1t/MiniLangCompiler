@@ -15,6 +15,9 @@ set(SOURCE_FILES
         src/CodeGenerator.cpp
         src/Optimizer.cpp
         src/IRInterpreter.cpp
+        include/ASTVisualizer.h
+        src/ASTVisualizer.cpp
+        src/AST.cpp
 )
 
 # 2. Создаем исполняемый файл (Цель LTLab)
