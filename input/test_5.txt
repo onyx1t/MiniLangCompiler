@@ -1,0 +1,22 @@
+int main_var;
+main_var = 50;
+
+if (main_var > 0) {
+    int inner_var;
+    inner_var = 10;
+    main_var = main_var + inner_var;
+    print inner_var;
+} else {
+    int dummy_var;
+    dummy_var = 0;
+}
+
+print main_var;
+
+main_var = 1;
+while (main_var < 3) {
+    int loop_var;
+    loop_var = main_var * 100;
+    print loop_var;
+    main_var = main_var + 1;
+}

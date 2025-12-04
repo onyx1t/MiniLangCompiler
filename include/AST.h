@@ -1,24 +1,21 @@
-// include/AST.h
 #pragma once
 
-#include <iostream>
 #include <vector>
 #include <memory>
 #include <string>
-#include "Token.h" // Убедитесь, что Token.h включен
+#include "Token.h"
 
-// --- Предварительное объявление посетителя и ProgramNode ---
 class ASTVisitor;
-class ProgramNode; // Для ссылок в IfStmtNode и WhileStmtNode
+class ProgramNode;
 
-// --- Базовый Класс ---
+// Базовый класс для всех узлов AST
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
     virtual void accept(ASTVisitor& visitor) = 0;
 };
 
-// --- Вспомогательный класс для терминальных символов ---
+// Узел для лексемы
 class TerminalNode : public ASTNode {
 public:
     TokenType type;
@@ -28,14 +25,13 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
-// --- 1. Узлы Выражений (Expressions) ---
-
+// Базовый класс для выражений
 class ExpressionNode : public ASTNode {
 public:
     virtual ~ExpressionNode() = default;
 };
 
-// Литерал (число)
+// Узел для целочисленного литерала
 class IntLiteralNode : public ExpressionNode {
 public:
     int value;
@@ -43,7 +39,7 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
-// Идентификатор (переменная)
+// Узел для идентификатора
 class IdentifierNode : public ExpressionNode {
 public:
     std::string name;
@@ -51,42 +47,34 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
-// Бинарная операция (A + B, A == B)
+// Узел для бинарной операции
 class BinaryOpNode : public ExpressionNode {
 public:
-    TokenType op; // Тип оператора (+, *, ==, <)
+    TokenType op;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
 
     BinaryOpNode(TokenType op_type, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r)
         : op(op_type), left(std::move(l)), right(std::move(r)) {}
 
-    // --- ДОБАВЛЕНО: Для ASTVisualizer.cpp ---
     std::string op_type_to_string() const;
-
     void accept(ASTVisitor& visitor) override;
 };
 
-// --- 2. Узлы Операторов (Statements) ---
-
-// Объявление переменной (int id;)
+// Узел для объявления переменной
 class VarDeclNode : public ASTNode {
 public:
     std::string name;
-    TokenType type; // (TOKEN_INT)
+    TokenType type;
 
     VarDeclNode(const std::string& n, TokenType t) : name(n), type(t) {}
-
-    // --- ДОБАВЛЕНО: Для ASTVisualizer.cpp ---
     std::string typeToString() const;
-
     void accept(ASTVisitor& visitor) override;
 };
 
-// Присваивание (id = expr;)
+// Узел для оператора присваивания
 class AssignStmtNode : public ASTNode {
 public:
-    // Имя переменной
     std::string identifier_name;
     std::unique_ptr<ASTNode> expression;
 
@@ -95,27 +83,26 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
-// Вывод (print expr;)
+// Узел для оператора вывода
 class PrintStmtNode : public ASTNode {
 public:
     std::unique_ptr<ASTNode> expression;
-
     PrintStmtNode(std::unique_ptr<ASTNode> expr) : expression(std::move(expr)) {}
     void accept(ASTVisitor& visitor) override;
 };
 
-// Условный оператор (if (C) {S} else {S})
+// Узел для условного оператора
 class IfStmtNode : public ASTNode {
 public:
     std::unique_ptr<ASTNode> condition;
-    std::unique_ptr<ProgramNode> then_body; // Тело IF
-    std::unique_ptr<ProgramNode> else_body; // Тело ELSE (может быть nullptr)
+    std::unique_ptr<ProgramNode> then_body;
+    std::unique_ptr<ProgramNode> else_body;
 
     IfStmtNode() = default;
     void accept(ASTVisitor& visitor) override;
 };
 
-// Цикл (while (C) {S})
+// Узел для оператора цикла
 class WhileStmtNode : public ASTNode {
 public:
     std::unique_ptr<ASTNode> condition;
@@ -125,23 +112,19 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
-// --- 3. Узел Программы (Корневой узел и список операторов) ---
-
-// Корень дерева и список операторов внутри блоков {}
+// Узел для блока программы
 class ProgramNode : public ASTNode {
 public:
     std::vector<std::unique_ptr<ASTNode>> statements;
-
     void accept(ASTVisitor& visitor) override;
 };
 
-// --- Класс Посетителя (Для обхода и вывода/генерации кода) ---
-
+// Интерфейс посетителя AST
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
 
-    // Посещение операторов и структур
+    // Методы для узлов-операторов
     virtual void visit(ProgramNode& node) = 0;
     virtual void visit(VarDeclNode& node) = 0;
     virtual void visit(AssignStmtNode& node) = 0;
@@ -149,7 +132,7 @@ public:
     virtual void visit(IfStmtNode& node) = 0;
     virtual void visit(WhileStmtNode& node) = 0;
 
-    // Посещение выражений
+    // Методы для узлов-выражений
     virtual void visit(BinaryOpNode& node) = 0;
     virtual void visit(IntLiteralNode& node) = 0;
     virtual void visit(IdentifierNode& node) = 0;

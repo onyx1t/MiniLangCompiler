@@ -1,58 +1,39 @@
-// include/Parser.h
 #pragma once
 
-#include <iostream>
-#include <vector>
-#include <map>
 #include <memory>
 #include "Token.h"
 #include "Lexer.h"
 #include "ErrorHandler.h"
 #include "AST.h"
 
+// Синтаксический анализатор (нисходящий рекурсивный парсер)
 class Parser {
 private:
     Lexer* lexer_;
     ErrorHandler* error_handler_;
     Token current_token_;
 
-    // ----------------------------------------------------------------
-    // Core Methods
-    // ----------------------------------------------------------------
+    // Основные методы парсера
+    void match(TokenType expected_type);     // Проверка и потребление токена
+    bool check(TokenType type);              // Проверка типа текущего токена
+    void parseError(const std::string& message); // Сообщение об ошибке
+    void consume();                          // Переход к следующему токену
 
-    // Проверяет, что текущий токен соответствует ожидаемому типу, и считывает следующий.
-    void match(TokenType expected_type);
-
-    // Проверяет, что текущий токен является одним из ожидаемых.
-    bool check(TokenType type);
-
-    // Сообщает о синтаксической ошибке.
-    void parseError(const std::string& message);
-
-    // Вспомогательная функция для считывания следующего токена (обертка для lexer_->getNextToken)
-    void consume();
-
-    // ----------------------------------------------------------------
-    // Recursive Descent Methods (for Non-Terminals)
-    // ----------------------------------------------------------------
-
-    std::unique_ptr<ASTNode> parseStmtList(); // S
-    std::unique_ptr<ASTNode> parseStmtListRest(std::unique_ptr<ASTNode> current_list); // S_rest
-    std::unique_ptr<ASTNode> parseStmt();     // Stmt
-
-    std::unique_ptr<ASTNode> parseCondition(); // C
-
-    std::unique_ptr<ASTNode> parseExpr();     // E
-    std::unique_ptr<ASTNode> parseExprRest(std::unique_ptr<ASTNode> left_expr); // E_rest
-    std::unique_ptr<ASTNode> parseTerm();     // T
-    std::unique_ptr<ASTNode> parseTermRest(std::unique_ptr<ASTNode> left_term); // T_rest
-    std::unique_ptr<ASTNode> parseFactor();   // F
-
-    std::unique_ptr<ASTNode> parseStmtElse(); // StmtElse
+    // Рекурсивные методы разбора
+    std::unique_ptr<ASTNode> parseStmtList();        // Список операторов
+    std::unique_ptr<ASTNode> parseStmtListRest(std::unique_ptr<ASTNode> current_list);
+    std::unique_ptr<ASTNode> parseStmt();            // Оператор
+    std::unique_ptr<ASTNode> parseCondition();       // Условие
+    std::unique_ptr<ASTNode> parseExpr();            // Выражение
+    std::unique_ptr<ASTNode> parseExprRest(std::unique_ptr<ASTNode> left_expr);
+    std::unique_ptr<ASTNode> parseTerm();            // Терм
+    std::unique_ptr<ASTNode> parseTermRest(std::unique_ptr<ASTNode> left_term);
+    std::unique_ptr<ASTNode> parseFactor();          // Фактор
+    std::unique_ptr<ASTNode> parseStmtElse();        // Else-ветка
 
 public:
     Parser(Lexer* lexer, ErrorHandler* handler);
 
-    // Основной метод парсинга
-    std::unique_ptr<ASTNode> parseProgram(); // P
+    // Основной метод парсинга программы
+    std::unique_ptr<ASTNode> parseProgram();
 };

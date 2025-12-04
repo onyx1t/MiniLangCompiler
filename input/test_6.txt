@@ -1,0 +1,13 @@
+int factorial;
+int n;
+int counter;
+factorial = 1;
+n = 6;
+counter = 1;
+
+while (counter < n) {
+    factorial = factorial * counter;
+    counter = counter + 1;
+}
+
+print(factorial);

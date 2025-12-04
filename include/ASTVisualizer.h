@@ -1,18 +1,15 @@
 #pragma once
 #include "AST.h"
-#include <iostream>
 #include <string>
 
-// Класс для визуализации АСТ в виде иерархического текста.
-// Наследуется от ASTVisitor.
+// Визуализатор AST: печатает дерево в удобочитаемом формате
 class ASTVisualizer : public ASTVisitor {
 private:
-    std::string indent_; // Текущая строка отступа (для ветвления)
-
+    std::string indent_;  // Текущий отступ для вложенных узлов
 public:
     ASTVisualizer() : indent_("") {}
 
-    // Методы Посетителя (должны соответствовать узлам в AST.h)
+    // Методы обхода узлов AST
     void visit(ProgramNode& node) override;
     void visit(VarDeclNode& node) override;
     void visit(AssignStmtNode& node) override;

@@ -12,12 +12,13 @@ set(SOURCE_FILES
         src/ErrorHandler.cpp
         # Добавляем placeholder'ы для будущих модулей
         src/Parser.cpp
-        src/CodeGenerator.cpp
-        src/Optimizer.cpp
+        src/IRGenerator.cpp
+        src/IROptimizer.cpp
         src/IRInterpreter.cpp
         include/ASTVisualizer.h
         src/ASTVisualizer.cpp
         src/AST.cpp
+        src/IR.cpp
 )
 
 # 2. Создаем исполняемый файл (Цель LTLab)

@@ -1,0 +1,15 @@
+int sum;
+int i;
+sum = 0;
+i = 1;
+
+while(i < 6) {
+    sum = sum + i;
+    i = i + 1;
+}
+
+if (sum > 10) {
+    print(sum);
+} else {
+    print(0);
+}

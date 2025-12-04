@@ -1,14 +1,10 @@
-﻿// src/Lexer.cpp
-#include "Lexer.h"
+﻿#include "Lexer.h"
 #include <iostream>
 #include <iomanip>
-#include <sstream>
 #include <algorithm>
 #include <fstream>
 
-// ********** 1. Определение вспомогательных функций Token (Token.h) **********
-
-// Внутренние карты для преобразования перечислений в строки
+// Вспомогательные функции для преобразования типов токенов в строки
 namespace {
     const std::map<TokenType, std::string> tokenTypeNames = {
         {TokenType::TOKEN_INT, "INT"}, {TokenType::TOKEN_IF, "IF"},
@@ -36,7 +32,6 @@ namespace {
     };
 }
 
-// Определение вспомогательных функций, объявленных в Token.h
 std::string Token::typeToString() const {
     auto it = tokenTypeNames.find(type);
     if (it != tokenTypeNames.end()) {
@@ -53,15 +48,10 @@ std::string Token::classToString() const {
     return "UNKNOWN_CLASS";
 }
 
-
-// --------------------------------------------------------------------------
-// 2. Lexer Core Implementation
-// --------------------------------------------------------------------------
-
+// Реализация методов лексического анализатора
 Lexer::Lexer(const std::string& source_code, ErrorHandler* handler)
     : source_code_(source_code),
       error_handler_(handler) {
-    // Все остальные члены (current_index_, token_index_ и т.д.) инициализированы в Lexer.h
 }
 
 bool Lexer::isAtEnd() const {
@@ -71,7 +61,7 @@ bool Lexer::isAtEnd() const {
 char Lexer::peek(size_t offset) const {
     size_t index = current_index_ + offset;
     if (index >= source_code_.length()) {
-        return '\0'; // Null terminator for EOF
+        return '\0';
     }
     return source_code_[index];
 }
@@ -100,7 +90,7 @@ void Lexer::skipWhitespace() {
 
 void Lexer::skipComment() {
     if (peek() == '/' && peek(1) == '/') {
-        advance(2); // Пропускаем //
+        advance(2);
         while (!isAtEnd() && peek() != '\n') {
             advance();
         }
@@ -120,6 +110,7 @@ bool Lexer::isAlphaNumeric(char c) const {
     return isAlpha(c) || isDigit(c);
 }
 
+// Сканирование числового литерала
 void Lexer::scanNumber() {
     size_t start_index = current_index_;
     while (isDigit(peek())) {
@@ -136,6 +127,7 @@ void Lexer::scanNumber() {
     });
 }
 
+// Сканирование идентификатора или ключевого слова
 void Lexer::scanIdentifierOrKeyword() {
     size_t start_index = current_index_;
     while (isAlphaNumeric(peek())) {
@@ -143,7 +135,6 @@ void Lexer::scanIdentifierOrKeyword() {
     }
 
     std::string value = source_code_.substr(start_index, current_index_ - start_index);
-
     TokenType type;
     TokenClass token_class;
 
@@ -164,6 +155,7 @@ void Lexer::scanIdentifierOrKeyword() {
     });
 }
 
+// Сканирование одного токена
 void Lexer::scanToken() {
     skipWhitespace();
     skipComment();
@@ -236,7 +228,6 @@ void Lexer::scanToken() {
     }
 
     if (type == TokenType::TOKEN_UNKNOWN) {
-        // Регистрация лексической ошибки. Важно, чтобы error_handler_ не был nullptr!
         if (error_handler_) {
             error_handler_->registerError(
                 "Lexical",
@@ -245,7 +236,6 @@ void Lexer::scanToken() {
                 (int)(current_index_ - line_start_pos_)
             );
         }
-        // Пропускаем неизвестный символ, чтобы продолжить анализ
         advance(len);
         return;
     }
@@ -262,16 +252,15 @@ void Lexer::scanToken() {
     advance(len);
 }
 
+// Основной метод лексического анализа
 void Lexer::runLexer() {
-    // Сбрасываем индекс токенов на случай повторного запуска (хотя Parser должен иметь свой сброс)
     token_index_ = 0;
-    tokens_.clear(); // Начинаем с чистого листа
+    tokens_.clear();
 
     while (!isAtEnd()) {
         scanToken();
     }
 
-    // Append EOF token
     tokens_.push_back({
         TokenType::TOKEN_EOF,
         TokenClass::END_OF_FILE,
@@ -281,47 +270,47 @@ void Lexer::runLexer() {
     });
 }
 
-// --------------------------------------------------------------------------
-// 3. Parser Interface (КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ СЕГМЕНТАЦИОННОЙ ОШИБКИ)
-// --------------------------------------------------------------------------
-
+// Получение следующего токена для парсера
 Token Lexer::getNextToken() {
-    // 1. Проверяем, есть ли еще токены для выдачи
     if (token_index_ < tokens_.size()) {
         return tokens_[token_index_++];
     }
 
-    // 2. Если достигнут конец И список токенов НЕ пуст, возвращаем последний токен (EOF)
-    // ЭТО ИСПРАВЛЕНИЕ: Предотвращает сбой при обращении к пустому вектору
     if (!tokens_.empty()) {
         return tokens_.back();
     }
 
-    // 3. Аварийный выход: если Lexer вообще не создал токенов (например, пустой файл)
     return Token(TokenType::TOKEN_ERROR, TokenClass::UNKNOWN, "Empty Token Stream", 0, 0);
 }
 
-// --------------------------------------------------------------------------
-// 4. Output Methods
-// --------------------------------------------------------------------------
-
+// Вывод таблицы токенов
 void Lexer::printTokenTable(std::ostream& os) const {
-    os << "## 📄 Token Table (LTLab)\n\n";
-
+    os << "## Token Table \n\n";
     os << "| Номер Строки | Позиция | Имя Лексемы | Класс Лексемы | Значение |\n";
-    os << "| :---: | :---: | :--- | :--- | :--- |\n";
+    os << "| :----------: | :-----: | :---------: | :-----------: | :------: |\n";
+
+    const int LINE_WIDTH = 12;
+    const int POS_WIDTH = 7;
+    const int TYPE_WIDTH = 11;
+    const int CLASS_WIDTH = 13;
+    const int VALUE_CELL_WIDTH = 8;
+
+    os << std::left;
 
     for (const auto& token : tokens_) {
         std::string value = token.value.empty() ? "\u00A0" : token.value;
 
-        os << "| " << std::setw(13) << token.line
-           << " | " << std::setw(7) << token.position
-           << " | " << token.typeToString()
-           << " | " << token.classToString()
-           << " | `" << value << "` |\n";
+        os << "| " << std::setw(LINE_WIDTH) << std::right << token.line
+           << " | " << std::setw(POS_WIDTH) << token.position
+           << " | " << std::setw(TYPE_WIDTH) << std::left << token.typeToString()
+           << " | " << std::setw(CLASS_WIDTH) << token.classToString()
+           << " | `" << std::setw(VALUE_CELL_WIDTH - 2) << value << "` |\n";
     }
+
+    os << std::right;
 }
 
+// Запись таблицы токенов в файл
 void Lexer::writeTokenTableToFile(const std::string& filename) const {
     std::ofstream ofs(filename);
     if (ofs.is_open()) {
