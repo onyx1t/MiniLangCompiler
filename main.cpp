@@ -71,8 +71,8 @@ int process_file(const std::string& input_filename, const std::string& output_fo
     const std::string OUTPUT_INTERPRETER_LOG = OUTPUT_DIR + "interpreter_output.log";
     const std::string OUTPUT_TOKEN_FILE = OUTPUT_DIR + "tokens_table.md";
     const std::string OUTPUT_AST_FILE = OUTPUT_DIR + "ast_structure.txt";
-    const std::string OUTPUT_IR_FILE = OUTPUT_DIR + "generated_ir.txt";
-    const std::string OUTPUT_IR_OPT_FILE = OUTPUT_DIR + "optimized_ir.txt";
+    const std::string OUTPUT_IR_FILE = OUTPUT_DIR + "generated_ir.ir";
+    const std::string OUTPUT_IR_OPT_FILE = OUTPUT_DIR + "optimized_ir.asm";
 
     create_directory_if_not_exists(OUTPUT_DIR);
 
