@@ -139,8 +139,8 @@ make
 output/testN/
 ├── tokens_table.md          # Таблица распознанных токенов
 ├── ast_structure.txt        # Визуализация AST
-├── generated_ir.txt         # Сгенерированный трёхадресный код
-├── optimized_ir.txt         # Оптимизированный код
+├── generated_ir.ir          # Сгенерированный трёхадресный код
+├── optimized_ir.asm         # Оптимизированный код
 └── interpreter_output.log   # Результат выполнения
 ```
 
