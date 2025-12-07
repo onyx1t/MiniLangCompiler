@@ -1,19 +1,11 @@
-int x;
-int y;
-int z;
+int counter;
+counter = 10;
 
-x = 5;
-y = 10;
-z = 2;
-
-x = x + y * z;
-print x;
-
-y = (y + z) * x;
-print y;
-
-z = 100 * 2;
-print z;
-
-x = x + y - z;
-print x;
+while (counter > 0) {
+    if (counter > 5) {
+        print counter;
+    } else {
+        print 0;
+    }
+    counter = counter - 1;
+}

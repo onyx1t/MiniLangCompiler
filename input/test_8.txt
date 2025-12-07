@@ -1,5 +1,8 @@
-// Error Test
-int a;
-a = 10;
-a = true;
-print(a);
+int p;
+int q;
+int r;
+p = 20;
+q = 4;
+r = p / q + p * q - (p + q) / 2;
+
+print r;

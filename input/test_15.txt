@@ -1,0 +1,4 @@
+// Error Test
+int x;
+x = 10 @ 5;
+print x;

@@ -96,9 +96,9 @@ std::unique_ptr<ASTNode> Parser::parseTerm() {
 
 // Продолжение разбора терма
 std::unique_ptr<ASTNode> Parser::parseTermRest(std::unique_ptr<ASTNode> left_term) {
-    if (check(TokenType::TOKEN_MULTIPLY)) {
+    if (check(TokenType::TOKEN_MULTIPLY) || check(TokenType::TOKEN_DIVIDE)) {
         Token op = current_token_;
-        match(TokenType::TOKEN_MULTIPLY);
+        consume();  // Потребляем оператор (* или /)
         std::unique_ptr<ASTNode> right_factor = parseFactor();
 
         std::unique_ptr<ASTNode> new_left = std::make_unique<BinaryOpNode>(

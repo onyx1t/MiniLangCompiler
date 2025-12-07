@@ -71,7 +71,7 @@ int process_file(const std::string& input_filename, const std::string& output_fo
     const std::string OUTPUT_INTERPRETER_LOG = OUTPUT_DIR + "interpreter_output.log";
     const std::string OUTPUT_TOKEN_FILE = OUTPUT_DIR + "tokens_table.md";
     const std::string OUTPUT_AST_FILE = OUTPUT_DIR + "ast_structure.txt";
-    const std::string OUTPUT_IR_FILE = OUTPUT_DIR + "generated_ir.ir";
+    const std::string OUTPUT_IR_FILE = OUTPUT_DIR + "generated_ir.asm";
     const std::string OUTPUT_IR_OPT_FILE = OUTPUT_DIR + "optimized_ir.asm";
 
     create_directory_if_not_exists(OUTPUT_DIR);
@@ -239,11 +239,13 @@ int main() {
     const std::vector<std::string> input_files = {
         "test_1.txt", "test_2.txt", "test_3.txt", "test_4.txt",
         "test_5.txt", "test_6.txt", "test_7.txt", "test_8.txt",
-        "test_9.txt"
+        "test_9.txt", "test_10.txt", "test_11.txt", "test_12.txt",
+        "test_13.txt", "test_14.txt", "test_15.txt"
     };
     const std::vector<std::string> output_folders = {
         "test1", "test2", "test3", "test4", "test5",
-        "test6", "test7", "test8", "test9"
+        "test6", "test7", "test8", "test9", "test10",
+        "test11", "test12", "test13", "test14", "test15"
     };
 
     if (input_files.size() != output_folders.size()) {
