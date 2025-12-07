@@ -31,7 +31,7 @@ LTLab/
 │ └── ...
 ├── main.cpp              # Точка входа, управление конвейером
 ├── CMakeLists.txt        # Конфигурация сборки CMake
-├── Grammar.md        # Конфигурация сборки CMake
+├── Grammar.md            # Конфигурация сборки CMake
 └── README.md             # Эта документация
 ```
 
